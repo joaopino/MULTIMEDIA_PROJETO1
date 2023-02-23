@@ -19,6 +19,9 @@ def Ex3_4_1(img):
     B = img[:, :, 2]
     return R, G, B
 
+
+    
+
 def Ex3_4_2(R, G, B):
     rows = len(R)
     cols = len(R[0])
@@ -52,28 +55,7 @@ img_name = input("Image path: ")
 
 #Red
 colormap = input("Colormap: ")
-#A
-color1imput = input("Color 1(A,R,G,B): ")
-#R
-color2imput = input("Color 1(A,R,G,B): ")
-
-if color1imput == "A":
-    color1 = (0, 0, 0)
-if color1imput == "R":
-    color1 = (1, 0, 0)
-if color1imput == "G":
-    color1 = (0, 1, 0)
-if color1imput == "B":
-    color1 = (0, 0, 1)
     
-if color2imput == "A":
-    color2 = (0, 0, 0)
-if color2imput == "R":
-    color2 = (1, 0, 0)
-if color2imput == "G":
-    color2 = (0, 1, 0)
-if color2imput == "B":
-    color2 = (0, 0, 1)
     
 img = Ex3_1(img_name)
 print(img)
