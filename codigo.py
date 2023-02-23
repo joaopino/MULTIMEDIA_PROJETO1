@@ -36,7 +36,6 @@ def get_color_input():
         color2 = (0, 0, 1)
     return color1,color2
 
-
 def Ex3_1(img_path):
     return plt.imread(img_path)
 
@@ -126,28 +125,39 @@ def upsampling(Y_d, Cb_d, Cr_d):
 def padding(imgFile):
     img_bgr = cv2.imread(imgFile)
     img = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+    #Linhas
     nl = img.shape[0]
+    #colunas
     nc = img.shape[1]
 
 
-    npl = 32-nl % 32
-    npc = 32-nc % 32
+    padding_linhas = 32- (nl % 32)
+    padding_colunas = 32- (nc % 32)
 
     ll = img[nl - 1, :][np.newaxis, :]
-    repl = ll.repeat(npl, axis=0)
+    repl = ll.repeat(padding_linhas, axis=0)
     imgp = np.vstack([img, repl])
 
     lc = imgp[:, nc-1][:, np.newaxis]
-    repc = lc.repeat(npc, axis=1)
+    repc = lc.repeat(padding_colunas, axis=1)
     imgp = np.hstack([imgp, repc])
     
     plt.figure()
     plt.imshow(imgp,None)
     plt.show()
     
-    
+    return imgp,nl,nc
 
-    return imgp
+def reverse_padding(image_array, nl_original, nc_original):
+    unpadded_height = image_array.shape[0] - nl_original
+    unpadded_width = image_array.shape[1] - nc_original
+
+    # Extract the unpadded image
+    unpadded_image = image_array[:nl_original, :nc_original ]
+    
+    plt.figure()
+    plt.imshow(unpadded_image)
+    plt.show()
 
 def RGB_toYCbCr(ImageFile):
     img = plt.imread(ImageFile)
@@ -221,7 +231,9 @@ def main():
 
     #================== Exercício 4
     
-    padding("imagens/barn_mountains.bmp")
+    img,nl,nc = padding("imagens/barn_mountains.bmp")
+    reverse_padding(img,nl,nc)
+    
     
     #================== Exercício 5
     
