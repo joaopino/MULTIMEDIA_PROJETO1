@@ -141,6 +141,10 @@ def padding(imgFile):
     repc = lc.repeat(npc, axis=1)
     imgp = np.hstack([imgp, repc])
     
+    plt.figure()
+    plt.imshow(imgp,None)
+    plt.show()
+    
     
 
     return imgp
