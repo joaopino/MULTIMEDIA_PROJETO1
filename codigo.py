@@ -4,6 +4,10 @@ import matplotlib.colors as clr
 import cv2
 import numpy as np
 
+
+
+##TODO
+# Remover o ciclo do join channels
 ycbcr_matrix = np.array([
     [65.481, 128.553, 24.966],
     [-37.797, -74.203, 112.0],
@@ -35,6 +39,33 @@ def get_color_input():
     if color2imput == "B":
         color2 = (0, 0, 1)
     return color1,color2
+
+def encoder(img,color1, color2, colormap):
+    img_padded,nl,nc = padding(img)
+    colormap = Ex3_2(colormap, color1, color2)
+    print(colormap)
+    Ex3_3(img_padded, colormap)
+    R_p, G_p, B_p = Ex3_4_1(img_padded)
+    Ex3_5(R_p, G_p, B_p)
+    
+    ycbcr = RGB_toYCbCr(img_padded)
+    showCanals(ycbcr) 
+    YCbCr_to_RGB(ycbcr)
+    
+    return img_padded,nl,nc,R_p, G_p, B_p,ycbcr
+    
+def decoder(image_array, nl_original, nc_original,R_p, G_p, B_p,ycbcr):
+    matrix_joined_rgb = Ex3_4_2(R_p, G_p, B_p)
+    
+    fig = plt.figure()
+    fig.add_subplot(1, 1, 1)
+    plt.title("RGB channels joined with padding")
+    plt.imshow(matrix_joined_rgb)
+   
+    YCbCr_to_RGB(ycbcr)
+    
+    reverse_padding(image_array, nl_original, nc_original)
+    print("REVERSED")
 
 def Ex3_1(img_path):
     return plt.imread(img_path)
@@ -149,9 +180,6 @@ def padding(imgFile):
     return imgp,nl,nc
 
 def reverse_padding(image_array, nl_original, nc_original):
-    unpadded_height = image_array.shape[0] - nl_original
-    unpadded_width = image_array.shape[1] - nc_original
-
     # Extract the unpadded image
     unpadded_image = image_array[:nl_original, :nc_original ]
     
@@ -160,8 +188,7 @@ def reverse_padding(image_array, nl_original, nc_original):
     plt.show()
 
 def RGB_toYCbCr(ImageFile):
-    img = plt.imread(ImageFile)
-    ycbr = np.dot(img,ycbcr_matrix.T)
+    ycbr = np.dot(ImageFile,ycbcr_matrix.T)
     
     G= ycbr[:,:,1] + 128
     B= ycbr[:,:,2] + 128
@@ -204,35 +231,19 @@ def showCanals(ycbcr_image):
 
 def main():
     
-    #img_name = input("Image path: ")
+    img_name = input("Image path: ")
 
-    #colormap = input("Colormap: ")
+    colormap = input("Colormap: ")
     
-    #color1,color2 = get_color_input()
+    color1,color2 = get_color_input()
     
+    padded_image,original_lines,original_columns,R_p, G_p, B_p,ycbcr = encoder(img_name,color1,color2,colormap)
     
-    
-    #================== Exercício 3
-    #Exercício 3.1    
-    #img = Ex3_1(img_name)
-    #print(img)
-    
-    #Exercício 3.2
-    #colormap = Ex3_2(colormap, color1, color2)
-    #print(colormap)
-    #Exercício 3.3
-    #Ex3_3(img, colormap)
-    #Exercício 3.4
-    #R_p, G_p, B_p  = Ex3_4_1(img)
-    #print(Ex3_4_2(R_p, G_p, B_p))
-    
-    #Exercício 3.5
-    #Ex3_5(R_p, G_p, B_p)
-
+    decoder(padded_image,original_lines,original_columns,R_p, G_p, B_p,ycbcr)
     #================== Exercício 4
     
-    img,nl,nc = padding("imagens/barn_mountains.bmp")
-    reverse_padding(img,nl,nc)
+    #img,nl,nc = padding("imagens/barn_mountains.bmp")
+    #reverse_padding(img,nl,nc)
     
     
     #================== Exercício 5
