@@ -4,101 +4,56 @@ import matplotlib.colors as clr
 import cv2
 import numpy as np
 
-
+import scipy.fftpack as fft
 
 ##TODO
 # Remover o ciclo do join channels
 ycbcr_matrix = np.array([
     [65.481, 128.553, 24.966],
     [-37.797, -74.203, 112.0],
-    [112.0, -93.786, -18.214]
-])
+    [112.0, -93.786, -18.214]])
 
+#3.1
 
-def get_color_input():
-    #A
-    color1imput = input("Color 1(A,R,G,B): ")
-    #R
-    color2imput = input("Color 1(A,R,G,B): ")
-
-    if color1imput == "A":
-        color1 = (0, 0, 0)
-    if color1imput == "R":
-        color1 = (1, 0, 0)
-    if color1imput == "G":
-        color1 = (0, 1, 0)
-    if color1imput == "B":
-        color1 = (0, 0, 1)
-        
-    if color2imput == "A":
-        color2 = (0, 0, 0)
-    if color2imput == "R":
-        color2 = (1, 0, 0)
-    if color2imput == "G":
-        color2 = (0, 1, 0)
-    if color2imput == "B":
-        color2 = (0, 0, 1)
-    return color1,color2
-
-def encoder(img,color1, color2, colormap):
-    img_padded,nl,nc = padding(img)
-    colormap = Ex3_2(colormap, color1, color2)
-    print(colormap)
-    Ex3_3(img_padded, colormap)
-    R_p, G_p, B_p = Ex3_4_1(img_padded)
-    Ex3_5(R_p, G_p, B_p)
-    
-    ycbcr = RGB_toYCbCr(img_padded)
-    showCanals(ycbcr) 
-    YCbCr_to_RGB(ycbcr)
-    
-    return img_padded,nl,nc,R_p, G_p, B_p,ycbcr
-    
-def decoder(image_array, nl_original, nc_original,R_p, G_p, B_p,ycbcr):
-    matrix_joined_rgb = Ex3_4_2(R_p, G_p, B_p)
-    
-    fig = plt.figure()
-    fig.add_subplot(1, 1, 1)
-    plt.title("RGB channels joined with padding")
-    plt.imshow(matrix_joined_rgb)
-   
-    YCbCr_to_RGB(ycbcr)
-    
-    reverse_padding(image_array, nl_original, nc_original)
-    print("REVERSED")
-
-def Ex3_1(img_path):
+def read_image(img_path):
     return plt.imread(img_path)
 
-def Ex3_2(colormap_name, color1, color2):
+#3.2
+
+def colormap_function(colormap_name, color1, color2):
     return clr.LinearSegmentedColormap.from_list(colormap_name, [color1, color2], 256)
 
-def Ex3_3(image, colormap):
+#3.3
+
+def draw_plot(image, colormap):
     plt.figure()
     plt.imshow(image, colormap)
     plt.show()
+    plt.title("Imagem original")
 
-def Ex3_4_1(img):
+
+#3.4
+
+def rgb_components(img):
     R = img[:, :, 0]
     G = img[:, :, 1]
     B = img[:, :, 2]
     return R, G, B
 
-def Ex3_4_2(R, G, B):
-    rows = len(R)
-    cols = len(R[0])
-    matrix_inverted = [[None] * cols for _ in range(rows)]
-
-    for i in range(rows):
-        for j in range(cols):
-            matrix_inverted[i][j] = [R[i][j], G[i][j], B[i][j]]
+def rgb_components_reverse(R, G, B):
+    matrix_inverted = np.zeros((len(R), len(R[0]), 3), dtype=np.uint8)
+    matrix_inverted[:, :, 0] = R
+    matrix_inverted[:, :, 1] = G
+    matrix_inverted[:, :, 2] = B
 
     return matrix_inverted
 
-def Ex3_5(c_R, c_G, c_B):
-    cm_red = Ex3_2("Red", (0, 0, 0), (1, 0, 0))
-    cm_green = Ex3_2("Green", (0, 0, 0), (0, 1, 0))
-    cm_blue = Ex3_2("Blue", (0, 0, 0), (0, 0, 1))
+#3.5
+
+def show_rgb(c_R, c_G, c_B):
+    cm_red = colormap_function("Red", (0, 0, 0), (1, 0, 0))
+    cm_green = colormap_function("Green", (0, 0, 0), (0, 1, 0))
+    cm_blue = colormap_function("Blue", (0, 0, 0), (0, 0, 1))
     fig = plt.figure()
     fig.add_subplot(1, 3, 1)
     plt.title("Channel R")
@@ -112,46 +67,7 @@ def Ex3_5(c_R, c_G, c_B):
     plt.subplots_adjust(wspace=0.5)
     plt.show()
 
-def downsampling(Y, Cb, Cr, fatorCb):
-    # 4:2:0
-    if fatorCb == 0:
-        scaleX = 0.5
-        scaleY = 0.5
-        Cb_d = cv2.resize(Cb, None, fx=scaleX, fy=scaleY,interpolation=cv2.INTER_NEAREST)
-        Cr_d = cv2.resize(Cr, None, fx=scaleX, fy=scaleY,interpolation=cv2.INTER_NEAREST)
-
-    # 4:2:2
-    else:
-        scaleX = 0.5
-        scaleY = 1
-        Cb_d = cv2.resize(Cb, None, fx=scaleX, fy=scaleY,interpolation=cv2.INTER_NEAREST)
-        Cr_d = cv2.resize(Cr, None, fx=scaleX, fy=scaleY,interpolation=cv2.INTER_NEAREST)
-
-    return Y, Cb_d, Cr_d
-
-def upsampling(Y_d, Cb_d, Cr_d):
-    scaleX = 0.5
-    scaleY = 1
-    stepX = int(scaleX)
-    stepY = int(scaleY)
-    Cb_u = cv2.resize(Cb_d, None, fx=stepX, fy=stepY,interpolation=cv2.INTER_LINEAR)
-    Cr_u = cv2.resize(Cr_d, None, fx=stepX, fy=stepY,interpolation=cv2.INTER_LINEAR)
-    
-    gray_colormap = Ex3_2("Gray", [0, 0, 0], [1, 1, 1])
-    
-    fig = plt.figure()
-    
-    fig.add_subplot(3, 2, 3)
-    plt.title("Cb - Downsampling 4:2:2")
-    plt.imshow(Cb_d, cmap=gray_colormap)
-
-    fig.add_subplot(3, 2, 4)
-    plt.title( "Cr - Downsampling 4:2:2")
-    plt.imshow(Cr_d, cmap=gray_colormap)
-
-    plt.subplots_adjust(hspace=0.5)
-
-    return Y_d, Cb_u, Cr_u
+#4
 
 def padding(imgFile):
     img_bgr = cv2.imread(imgFile)
@@ -160,7 +76,6 @@ def padding(imgFile):
     nl = img.shape[0]
     #colunas
     nc = img.shape[1]
-
 
     padding_linhas = 32- (nl % 32)
     padding_colunas = 32- (nc % 32)
@@ -176,6 +91,7 @@ def padding(imgFile):
     plt.figure()
     plt.imshow(imgp,None)
     plt.show()
+    plt.title("Imagem com padding")
     
     return imgp,nl,nc
 
@@ -186,10 +102,14 @@ def reverse_padding(image_array, nl_original, nc_original):
     plt.figure()
     plt.imshow(unpadded_image)
     plt.show()
+    plt.title("Imagem sem padding(original)")
+    
+#5
 
 def RGB_toYCbCr(ImageFile):
     ycbr = np.dot(ImageFile,ycbcr_matrix.T)
     
+    R= ycbr[:,:,0] + 128
     G= ycbr[:,:,1] + 128
     B= ycbr[:,:,2] + 128
     
@@ -210,6 +130,7 @@ def YCbCr_to_RGB(ycbcr):
     plt.figure()
     plt.imshow(normalized_rgb,None)
     plt.show()
+    plt.title("Imagem original")
 
 def showCanals(ycbcr_image):
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 5))
@@ -227,30 +148,181 @@ def showCanals(ycbcr_image):
     ax3.set_title("Canal Cr")
     
     plt.show()
+    plt.title("Mostra os canais Y, Cb, Cr da imagem)")
+    
+#6
+    
+def downsampling(img, type):
+    
+    Y = cv2.pyrDown(img[:,:,0])
+    Cb = cv2.pyrDown(img[:,:,1])
+    Cr = cv2.pyrDown(img[:,:,2])
+    
+    # 4:2:0
+    if type == 0:
+        scaleX = 0.5
+        scaleY = 0.5
+        Cb_d = cv2.resize(Cb, None, fx=scaleX, fy=scaleY,interpolation=cv2.INTER_LINEAR)
+        Cr_d = cv2.resize(Cr, None, fx=scaleX, fy=scaleY,interpolation=cv2.INTER_LINEAR)
 
+    # 4:2:2
+    else:
+        scaleX = 0.5
+        scaleY = 1
+        Cb_d = cv2.resize(Cb, None, fx=scaleX, fy=scaleY,interpolation=cv2.INTER_LINEAR)
+        Cr_d = cv2.resize(Cr, None, fx=scaleX, fy=scaleY,interpolation=cv2.INTER_LINEAR)
+
+    gray_colormap = colormap_function("Gray", [0, 0, 0], [1, 1, 1])
+    
+    fig = plt.figure()
+    
+    fig.add_subplot(3, 2, 3)
+    plt.title("Cb - Downsampling 4:2:2")
+    plt.imshow(Cb_d, cmap=gray_colormap)
+
+    fig.add_subplot(3, 2, 4)
+    plt.title( "Cr - Downsampling 4:2:2")
+    plt.imshow(Cr_d, cmap=gray_colormap)
+
+    plt.subplots_adjust(hspace=0.5)
+
+    return Y, Cb_d, Cr_d
+
+def upsampling(Y_d, Cb_d, Cr_d, type):
+    
+    if type == 0:
+        scaleX = 0.5
+        scaleY = 0.5
+        stepX = int(scaleX)
+        stepY = int(scaleY)
+        
+        Cb_u = cv2.resize(Cb_d, None, fx=stepX, fy=stepY,interpolation=cv2.INTER_LINEAR)
+        Cr_u = cv2.resize(Cr_d, None, fx=stepX, fy=stepY,interpolation=cv2.INTER_LINEAR)
+    else:
+        scaleX = 0.5
+        scaleY = 1
+        stepX = int(scaleX)
+        stepY = int(scaleY)
+        
+        Cb_u = cv2.resize(Cb_d, None, fx=stepX, fy=stepY,interpolation=cv2.INTER_LINEAR)
+        Cr_u = cv2.resize(Cr_d, None, fx=stepX, fy=stepY,interpolation=cv2.INTER_LINEAR)
+    
+    gray_colormap = colormap_function("Gray", [0, 0, 0], [1, 1, 1])
+    
+    fig = plt.figure()
+    
+    fig.add_subplot(3, 2, 3)
+    plt.title("Cb - Upsampling 4:2:2")
+    plt.imshow(Cb_u, cmap=gray_colormap)
+
+    fig.add_subplot(3, 2, 4)
+    plt.title( "Cr - Upsampling 4:2:2")
+    plt.imshow(Cr_u, cmap=gray_colormap)
+
+    plt.subplots_adjust(hspace=0.5)
+
+    return Y_d, Cb_u, Cr_u
+    
+def dct(channel, blocks, channel_0):
+    channel_dct = np.zeros(channel.shape)
+    channel_dct_log = np.zeros(channel.shape)
+    channel_dct_block = np.zeros(channel.shape)
+
+    for i in range(0, len(channel), blocks):
+        for j in range(0, len(channel[0]), channel_0):
+            channel_dct = fft.dct(fft.dct(channel, norm="ortho").T, norm="ortho").T
+            channel_dct_block[i:i+blocks, j:j+channel_0] = fft.dct(fft.dct(channel[i:i+blocks, j:j+channel_0], norm="ortho").T, norm="ortho").T
+            channel_aux = fft.dct(fft.dct(channel[i:i+blocks, j:j+channel_0], norm="ortho").T, norm="ortho").T
+            channel_dct_log[i:i+blocks, j:j +channel_0] = np.log(np.abs(channel_aux) + 0.0001)
+            
+    plt.imshow(channel_dct, cmap='gray')
+    plt.title("DCT do canal" + channel + "completo")
+    
+    plt.imshow(channel_dct_log, cmap='gray')
+    plt.title("DCT do canal" + channel + "completo com funçaõ logaritmica")
+    
+    plt.imshow(channel_dct_block, cmap='gray')
+    plt.title("DCT do canal" + channel + 'em blocos' + blocks + "x" + blocks)
+    
+    plt.show()
+    return channel_dct, channel_dct_block, channel_dct_log
+
+def dct_inverse(channel_dct,  blocks, channel_0):
+    channel_d = np.zeros(channel_dct.shape)
+    channel_d_block = np.zeros(channel_dct.shape)
+
+    for i in range(0, len(channel_dct), blocks):
+        for j in range(0, len(channel_dct[0]), channel_0):
+            chanel_d = fft.idct(fft.idct(channel_dct, norm="ortho").T, norm="ortho").T
+            channel_d_block[i:i+blocks, j:j+channel_0] = fft.idct(fft.idct( channel_dct[i:i+blocks, j:j+channel_0], norm="ortho").T, norm="ortho").T
+
+    plt.imshow(channel_d, cmap='gray')
+    plt.title("DCT inverso canal completo")
+    
+    plt.imshow(channel_d, cmap='gray')
+    plt.title("DCT inverso canal em blocos")
+    
+    plt.show()
+
+    return channel_d, channel_d_block
+
+def encoder(img,color1, color2, colormap):
+    
+    #3
+    
+    colormap = colormap_function(colormap, color1, color2)
+    draw_plot(img, colormap)
+    R_p, G_p, B_p = rgb_components(img)
+    show_rgb(R_p, G_p, B_p)
+    
+    #4
+    
+    img_padded,nl,nc = padding(img)
+    
+    #5
+    
+    ycbcr = RGB_toYCbCr(img_padded)
+    showCanals(ycbcr) 
+    
+    #6
+    
+    Y_d, Cb_d, Cr_d = downsampling(R_p, G_p, B_p,0)
+    
+    #7
+    
+    Y_dct, Y_dct_log, Y_dct_block = dct(Y_d, 64, 64)
+    Cb_dct, Cb_dct_log, Cb_dct_block = dct(Cb_d, 64, 64)
+    Cr_dct, Cr_dct_log, Cr_dct_block = dct(Cr_d, 64, 64)
+    
+    Y_dct, Y_dct_log, Y_dct_block = dct(Y_d, 8, 8)
+    Cb_dct, Cb_dct_log, Cb_dct_block = dct(Cb_d, 8, 8)
+    Cr_dct, Cr_dct_log, Cr_dct_block = dct(Cr_d, 8, 8)
+    
+    return img_padded,nl,nc,R_p, G_p, B_p,ycbcr, Y_d, Cb_d, Cr_d, Y_dct, Y_dct_log, Cb_dct, Y_dct_block, Cb_dct_block, Cr_dct_block
+    
+def decoder(image_array, nl_original, nc_original,R_p, G_p, B_p,ycbcr, Y_d, Cb_d, Cr_d, Y_dct, Cb_dct, Cr_dct):
+    matrix_joined_rgb = rgb_components_reverse(R_p, G_p, B_p)
+    
+    fig = plt.figure()
+    fig.add_subplot(1, 1, 1)
+    plt.title("RGB channels joined with padding")
+    plt.imshow(matrix_joined_rgb)
+   
+    YCbCr_to_RGB(ycbcr)
+    
+    reverse_padding(image_array, nl_original, nc_original)
+    
+    upsampling(Y_d, Cb_d, Cr_d,0)
+    
+    Y_d = dct_inverse(Y_dct, 8, 8)
+    Cb_d = dct_inverse(Cb_dct, 8, 8)
+    Cr_d = dct_inverse(Cr_dct, 8, 8)
 
 def main():
     
-    img_name = input("Image path: ")
-
-    colormap = input("Colormap: ")
+    padded_image,original_lines,original_columns,R_p, G_p, B_p,ycbcr, Y_dct_block, Cb_dct_block, Cr_dct_block = encoder("imagens\barn_mountains.bmp",(1, 1, 1),(1, 0, 0),"Red")
     
-    color1,color2 = get_color_input()
-    
-    padded_image,original_lines,original_columns,R_p, G_p, B_p,ycbcr = encoder(img_name,color1,color2,colormap)
-    
-    decoder(padded_image,original_lines,original_columns,R_p, G_p, B_p,ycbcr)
-    #================== Exercício 4
-    
-    #img,nl,nc = padding("imagens/barn_mountains.bmp")
-    #reverse_padding(img,nl,nc)
-    
-    
-    #================== Exercício 5
-    
-    #ycbcr = RGB_toYCbCr(input("Path to Image to turn to YCbCr: "))
-    #showCanals(ycbcr) 
-    #YCbCr_to_RGB(ycbcr)
+    decoder(padded_image,original_lines,original_columns,R_p, G_p, B_p,ycbcr,Y_dct_block, Cb_dct_block, Cr_dct_block)
     
     
 if __name__ == "__main__":
