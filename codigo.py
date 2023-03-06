@@ -266,18 +266,179 @@ def dct_inverse(channel_dct,  blocks, channel_0):
 
     return channel_d, channel_d_block
 
+#8
+
+def quantized_dct_coefficients_8x8(Y_dct, Cb_dct, Cr_dct):
+    qualities = np.array([10, 25, 50, 75, 100])
+    
+    Q_Y = np.array([[16,  11,  10,  16,  24,  40,  51,  61],
+                    [12,  12,  14,  19,  26,  58,  60,  55],
+                    [14,  13,  16,  24,  40,  57,  69,  56],
+                    [14,  17,  22,  29,  51,  87,  80,  62],
+                    [18,  22,  37,  56,  68, 109, 103,  77],
+                    [24,  35,  55,  64,  81, 104, 113,  92],
+                    [49,  64,  78,  87, 103, 121, 120, 101],
+                    [72,  92,  95,  98, 112, 100, 103,  99]])
+    
+    Q_Y_with_tile = np.tile(Q_Y, (int(len(Y_dct)/8), int(len(Y_dct[0])/8)))
+
+    Q_CbCr = np.array([[17, 18, 24, 47, 99, 99, 99, 99],
+                       [18, 21, 26, 66, 99, 99, 99, 99],
+                       [24, 26, 56, 99, 99, 99, 99, 99],
+                       [47, 66, 99, 99, 99, 99, 99, 99],
+                       [99, 99, 99, 99, 99, 99, 99, 99],
+                       [99, 99, 99, 99, 99, 99, 99, 99],
+                       [99, 99, 99, 99, 99, 99, 99, 99],
+                       [99, 99, 99, 99, 99, 99, 99, 99]])
+    
+    Q_CbCr_with_tile = np.tile(Q_CbCr, (int(len(Cb_dct)/8), int(len(Cb_dct[0])/8)))
+    
+    for i in qualities:
+        if(i >= 50):
+            sf = (100 - i) / 50
+        else:
+            sf = 50 / i
+
+        if(sf != 0):
+            Qs_Y = np.round(Q_Y_with_tile * sf)
+        else:
+            Qs_Y = np.ones(Q_Y_with_tile.shape, dtype=np.uint8)
+        
+        Qs_Y[Qs_Y > 255] = 255
+        Qs_Y[Qs_Y < 1] = 1
+            
+        if(i >= 50):
+            sf = (100 - i) / 50
+        else:
+            sf = 50/i
+
+        if(sf != 0):
+            Qs_CbCr = np.round(Q_CbCr_with_tile * sf)
+        else:
+            Qs_CbCr = np.ones(Q_CbCr_with_tile.shape, dtype=np.uint8)
+
+        Qs_CbCr[Qs_CbCr > 255] = 255
+        Qs_CbCr[Qs_CbCr < 1] = 1
+        
+        quantized_Y_dct = np.round(Y_dct / Q_Y_with_tile)
+        quantized_Cb_dct = np.round(Cb_dct / Q_CbCr_with_tile)
+        quantized_Cr_dct = np.round(Cr_dct / Q_CbCr_with_tile)
+        
+        gray_colormap = colormap_function("gray", [0, 0, 0], [1, 1, 1])
+        fig = plt.figure()
+
+        # Y DCT
+        fig.add_subplot(1, 3, 1)
+        plt.title("Y DCT Cuantizado")
+        plt.imshow(np.log(np.abs(quantized_Y_dct) + 0.0001), cmap=gray_colormap)
+        plt.colorbar(shrink=0.5)
+
+        # Cb DCT
+        fig.add_subplot(1, 3, 2)
+        plt.title("Cb DCT Cuantizado")
+        plt.imshow(np.log(np.abs(quantized_Cb_dct) + 0.0001), cmap=gray_colormap)
+        plt.colorbar(shrink=0.5)
+
+        # Cr DCT
+        fig.add_subplot(1, 3, 3)
+        plt.title("Cr DCT Cuantizado")
+        plt.imshow(np.log(np.abs(quantized_Cr_dct) + 0.0001), cmap=gray_colormap)
+        plt.colorbar(shrink=0.5)
+
+        plt.subplots_adjust(wspace=0.5)
+
+    return quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct
+
+def inverse_quantized_dct_coefficients_8x8(quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct):
+    qualities = np.array([10, 25, 50, 75, 100])
+    
+    Q_Y = np.array([[16,  11,  10,  16,  24,  40,  51,  61],
+                    [12,  12,  14,  19,  26,  58,  60,  55],
+                    [14,  13,  16,  24,  40,  57,  69,  56],
+                    [14,  17,  22,  29,  51,  87,  80,  62],
+                    [18,  22,  37,  56,  68, 109, 103,  77],
+                    [24,  35,  55,  64,  81, 104, 113,  92],
+                    [49,  64,  78,  87, 103, 121, 120, 101],
+                    [72,  92,  95,  98, 112, 100, 103,  99]])
+    
+    Q_Y_with_tile = np.tile(Q_Y, (int(len(quantized_Y_dct)/8), int(len(quantized_Y_dct[0])/8)))
+
+    Q_CbCr = np.array([[17, 18, 24, 47, 99, 99, 99, 99],
+                       [18, 21, 26, 66, 99, 99, 99, 99],
+                       [24, 26, 56, 99, 99, 99, 99, 99],
+                       [47, 66, 99, 99, 99, 99, 99, 99],
+                       [99, 99, 99, 99, 99, 99, 99, 99],
+                       [99, 99, 99, 99, 99, 99, 99, 99],
+                       [99, 99, 99, 99, 99, 99, 99, 99],
+                       [99, 99, 99, 99, 99, 99, 99, 99]])
+    
+    Q_CbCr_with_tile = np.tile(Q_CbCr, (int(len(quantized_Cb_dct)/8), int(len(quantized_Cb_dct[0])/8)))
+    
+    for i in qualities:
+        if(i >= 50):
+            sf = (100 - i) / 50
+        else:
+            sf = 50/i
+
+        if(sf != 0):
+            Qs_Y = np.round(Q_Y_with_tile * sf)
+        else:
+            Qs_Y = np.ones(Q_Y_with_tile.shape, dtype=np.uint8)
+        
+        Qs_Y[Qs_Y > 255] = 255
+        Qs_Y[Qs_Y < 1] = 1
+            
+        if(i >= 50):
+            sf = (100 - i) / 50
+        else:
+            sf = 50/i
+
+        if(sf != 0):
+            Qs_CbCr = np.round(Q_CbCr_with_tile * sf)
+        else:
+            Qs_CbCr = np.ones(Q_CbCr_with_tile.shape, dtype=np.uint8)
+
+        Qs_CbCr[Qs_CbCr > 255] = 255
+        Qs_CbCr[Qs_CbCr < 1] = 1
+        
+        Y_dct = quantized_Y_dct * Qs_Y
+        Cb_dct = quantized_Cb_dct * Qs_CbCr
+        Cr_dct = quantized_Cr_dct * Qs_CbCr
+        
+        gray_colormap = colormap_function("gray", [0, 0, 0], [1, 1, 1])
+        fig = plt.figure()
+
+        # Y DCT
+        fig.add_subplot(1, 3, 1)
+        plt.title("Y DCT")
+        plt.imshow(np.log(np.abs(Y_dct) + 0.0001), cmap=gray_colormap)
+        plt.colorbar(shrink=0.5)
+
+        # Cb DCT
+        fig.add_subplot(1, 3, 2)
+        plt.title("Cb DCT")
+        plt.imshow(np.log(np.abs(Cb_dct) + 0.0001), cmap=gray_colormap)
+        plt.colorbar(shrink=0.5)
+
+        # Cr DCT
+        fig.add_subplot(1, 3, 3)
+        plt.title("Cr DCT")
+        plt.imshow(np.log(np.abs(Cr_dct) + 0.0001), cmap=gray_colormap)
+        plt.colorbar(shrink=0.5)
+
+        plt.subplots_adjust(wspace=0.5)
+
+    return Y_dct, Cb_dct, Cr_dct
+
 def encoder(img,color1, color2, colormap):
     
-    #3
-    
-    colormap = colormap_function(colormap, color1, color2)
-    draw_plot(img, colormap)
-    R_p, G_p, B_p = rgb_components(img)
-    show_rgb(R_p, G_p, B_p)
-    
-    #4
+    #3 e 4
     
     img_padded,nl,nc = padding(img)
+    colormap = colormap_function(colormap, color1, color2)
+    draw_plot(img_padded, colormap)
+    R_p, G_p, B_p = rgb_components(img_padded)
+    show_rgb(R_p, G_p, B_p)
     
     #5
     
@@ -287,6 +448,7 @@ def encoder(img,color1, color2, colormap):
     #6
     
     Y_d, Cb_d, Cr_d = downsampling(R_p, G_p, B_p,0)
+    Y_d, Cb_d, Cr_d = downsampling(R_p, G_p, B_p,1)
     
     #7
     
@@ -298,25 +460,44 @@ def encoder(img,color1, color2, colormap):
     Cb_dct, Cb_dct_log, Cb_dct_block = dct(Cb_d, 8, 8)
     Cr_dct, Cr_dct_log, Cr_dct_block = dct(Cr_d, 8, 8)
     
-    return img_padded,nl,nc,R_p, G_p, B_p,ycbcr, Y_d, Cb_d, Cr_d, Y_dct, Y_dct_log, Cb_dct, Y_dct_block, Cb_dct_block, Cr_dct_block
+    #8
     
-def decoder(image_array, nl_original, nc_original,R_p, G_p, B_p,ycbcr, Y_d, Cb_d, Cr_d, Y_dct, Cb_dct, Cr_dct):
+    quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct = quantized_dct_coefficients_8x8(Y_dct, Cb_dct, Cr_dct)
+    
+    return img_padded,nl,nc,R_p, G_p, B_p,ycbcr, Y_d, Cb_d, Cr_d, Y_dct, Y_dct_log, Cb_dct, Y_dct_block, Cb_dct_block, Cr_dct_block,  quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct
+    
+def decoder(image_array, nl_original, nc_original,R_p, G_p, B_p,ycbcr, Y_d, Cb_d, Cr_d, Y_dct, Cb_dct, Cr_dct, quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct):
+    
+    #3
+    
     matrix_joined_rgb = rgb_components_reverse(R_p, G_p, B_p)
     
     fig = plt.figure()
     fig.add_subplot(1, 1, 1)
     plt.title("RGB channels joined with padding")
     plt.imshow(matrix_joined_rgb)
-   
-    YCbCr_to_RGB(ycbcr)
+    
+    #4
     
     reverse_padding(image_array, nl_original, nc_original)
     
+    #5
+   
+    YCbCr_to_RGB(ycbcr)
+    
+    #6
+        
     upsampling(Y_d, Cb_d, Cr_d,0)
+    
+    #7
     
     Y_d = dct_inverse(Y_dct, 8, 8)
     Cb_d = dct_inverse(Cb_dct, 8, 8)
     Cr_d = dct_inverse(Cr_dct, 8, 8)
+    
+    #8
+    
+    Y_dct, Cb_dct, Cr_dct = inverse_quantized_dct_coefficients_8x8(quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct)
 
 def main():
     
