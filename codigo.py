@@ -112,7 +112,7 @@ def reverse_padding(image_array, nl_original, nc_original):
     
     plt.figure()
     plt.imshow(unpadded_image)
-    plt.title("Imagem sem padding")
+    plt.title("Img Reconstr")
     plt.show()
     
     return unpadded_image
@@ -187,6 +187,10 @@ def downsampling(Y, Cb, Cr, type):
         Cr_d = cv2.resize(Cr, None, fx=scaleX, fy=scaleY,interpolation=cv2.INTER_LINEAR)
         
         fig = plt.figure()
+        
+        fig.add_subplot(3, 2, 3)
+        plt.title("Y - Downsampling 4:2:0")
+        plt.imshow(Y, cmap=gray_colormap)
     
         fig.add_subplot(3, 2, 3)
         plt.title("Cb - Downsampling 4:2:0")
@@ -479,7 +483,7 @@ def inverse_quantized_dct_coefficients_8x8(quantized_Y_dct, quantized_Cb_dct, qu
 
     return Y_dct, Cb_dct, Cr_dct
 
-def quantized_dct_coefficients_8x8_50(Y_dct, Cb_dct, Cr_dct):
+def quantized_dct_coefficients_8x8(Y_dct, Cb_dct, Cr_dct, qf):
     Q_Y = np.array([[16,  11,  10,  16,  24,  40,  51,  61],
                     [12,  12,  14,  19,  26,  58,  60,  55],
                     [14,  13,  16,  24,  40,  57,  69,  56],
@@ -502,8 +506,8 @@ def quantized_dct_coefficients_8x8_50(Y_dct, Cb_dct, Cr_dct):
     
     Q_CbCr_with_tile = np.tile(Q_CbCr, (int(len(Cb_dct)/8), int(len(Cb_dct[0])/8)))
     
-    Qs_Y = quality_factor(Q_Y_with_tile, 50)
-    Qs_CbCr = quality_factor(Q_CbCr_with_tile, 50)
+    Qs_Y = quality_factor(Q_Y_with_tile, qf)
+    Qs_CbCr = quality_factor(Q_CbCr_with_tile, qf)
     
     quantized_Y_dct = np.round(Y_dct / Qs_Y).astype(int)
     quantized_Cb_dct = np.round(Cb_dct / Qs_CbCr).astype(int)
@@ -511,7 +515,7 @@ def quantized_dct_coefficients_8x8_50(Y_dct, Cb_dct, Cr_dct):
     
     return quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct
 
-def inverse_quantized_dct_coefficients_8x8_50(quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct):
+def inverse_quantized_dct_coefficients_8x8(quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct, qf):
     Q_Y = np.array([[16,  11,  10,  16,  24,  40,  51,  61],
                     [12,  12,  14,  19,  26,  58,  60,  55],
                     [14,  13,  16,  24,  40,  57,  69,  56],
@@ -534,8 +538,8 @@ def inverse_quantized_dct_coefficients_8x8_50(quantized_Y_dct, quantized_Cb_dct,
     
     Q_CbCr_with_tile = np.tile(Q_CbCr, (int(len(quantized_Cb_dct)/8), int(len(quantized_Cb_dct[0])/8)))
     
-    Qs_Y = quality_factor(Q_Y_with_tile, 50)
-    Qs_CbCr = quality_factor(Q_CbCr_with_tile, 50)
+    Qs_Y = quality_factor(Q_Y_with_tile, qf)
+    Qs_CbCr = quality_factor(Q_CbCr_with_tile, qf)
     
     Y_dct = quantized_Y_dct * Qs_Y
     Cb_dct = quantized_Cb_dct * Qs_CbCr
@@ -545,7 +549,6 @@ def inverse_quantized_dct_coefficients_8x8_50(quantized_Y_dct, quantized_Cb_dct,
     
     
 def coefficients_dc(dc, blocks):
-    gray_colormap = colormap_function("gray", [0, 0, 0], [1, 1, 1])
     diff = dc.copy()
     for i in range(0, len(dc), blocks):
         for j in range(0, len(dc[0]), blocks):
@@ -567,10 +570,6 @@ def inverse_coefficients_dc(diff, blocks):
                     dc[i][j] = dc[i -blocks][len(diff[0])-blocks-1] + diff[i][j]
             else:
                 dc[i][j] = dc[i][j-blocks] + diff[i][j]
-    plt.figure()
-    plt.imshow(np.log(np.abs(dc) + 0.0001), cmap=gray_colormap)
-    plt.title("Ex.9._inverso")
-    plt.show()
     return dc
 
 def MSE(original_image, recovered_image):
@@ -598,7 +597,7 @@ def PSNR(mse, original_image):
     return psnr
 
 
-def encoder(img,color1, color2, colormap):
+def encoder(img,color1, color2, colormap, qf):
     #3 e 4
     
     img_original = read_image(img)
@@ -625,7 +624,7 @@ def encoder(img,color1, color2, colormap):
     
     #8
     
-    quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct = quantized_dct_coefficients_8x8_50(Y_dct, Cb_dct, Cr_dct)
+    quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct = quantized_dct_coefficients_8x8(Y_dct, Cb_dct, Cr_dct, qf)
     
     #9
     
@@ -633,9 +632,9 @@ def encoder(img,color1, color2, colormap):
     diff_Cb = coefficients_dc(quantized_Cb_dct, 8)
     diff_Cr = coefficients_dc(quantized_Cr_dct, 8)
     
-    return nl,nc, diff_Y, diff_Cb, diff_Cr, img_original
+    return nl,nc, diff_Y, diff_Cb, diff_Cr, img_original, qf , Y
     
-def decoder(nl,nc, diff_Y, diff_Cb, diff_Cr, img_original):
+def decoder(nl,nc, diff_Y, diff_Cb, diff_Cr, img_original, qf, Y):
     
     #9
     
@@ -645,7 +644,7 @@ def decoder(nl,nc, diff_Y, diff_Cb, diff_Cr, img_original):
     
     #8
     
-    Y_dct, Cb_dct, Cr_dct = inverse_quantized_dct_coefficients_8x8_50(quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct)
+    Y_dct, Cb_dct, Cr_dct = inverse_quantized_dct_coefficients_8x8(quantized_Y_dct, quantized_Cb_dct, quantized_Cr_dct, qf)
    
     #7
     
@@ -665,34 +664,37 @@ def decoder(nl,nc, diff_Y, diff_Cb, diff_Cr, img_original):
     
     matrix_joined_rgb = rgb_components_reverse(R, G, B)
     
-    fig = plt.figure()
-    fig.add_subplot(1, 1, 1)
-    plt.title("RGB channels joined with padding")
-    plt.imshow(matrix_joined_rgb)
-    
     #4
     
     img_wp = reverse_padding(matrix_joined_rgb, nl, nc)
     
+    y_error = abs(Y - Y_d)
+    gray_colormap = colormap_function("gray", [0, 0, 0], [1, 1, 1])
+
+    plt.title("Imagem difrenças")
+    plt.imshow(y_error, cmap=gray_colormap)
+    plt.show()
+    
+    print("QF = " + str(qf) + "\n")
     
     mse = MSE(img_original, img_wp)
-    print("MSE: ", end="")
+    print("MSE = ", end="")
     print(format(mse, ".3f"))
     rmse = RMSE(mse)
-    print("RMSE: ", end="")
+    print("RMSE = ", end="")
     print(format(rmse, ".3f"))
     snr = SNR(img_original, mse)
-    print("SNR: ", end="")
+    print("SNR = ", end="")
     print(format(snr, ".3f"))
     psnr = PSNR(mse, img_original)
-    print("PSNR: ", end="")
+    print("PSNR = ", end="")
     print(format(psnr, ".3f"))
     
 def main():
     
-    nl,nc,diff_Y, diff_Cb, diff_Cr, img_original = encoder("imagens/barn_mountains.bmp",(1, 1, 1),(1, 0, 0),"Red")
+    nl,nc,diff_Y, diff_Cb, diff_Cr, img_original, qf, Y = encoder("imagens/barn_mountains.bmp",(1, 1, 1),(1, 0, 0),"Red", 75)
     
-    decoder(nl,nc, diff_Y, diff_Cb, diff_Cr, img_original)
+    decoder(nl,nc, diff_Y, diff_Cb, diff_Cr, img_original, qf, Y)
     
 if __name__ == "__main__":
     main()
